@@ -19,6 +19,7 @@ COPY go.sum go.sum
 
 
 COPY main.go main.go
+COPY cmd/tls/main.go cmd/tls/main.go
 COPY pkg/ pkg/
 
 
@@ -26,14 +27,20 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 ENV GO111MODULE=on
-ENV GOPROXY=https://proxy.golang.org
+ENV GOPROXY=https://goproxy.cn,direct
 
 # 进行压缩
 RUN go mod download && \
     go build -a -o admission-registry main.go && \
-    upx admission-registry
+    go build -a -o tls-manager cmd/tls/main.go && \
+    upx admission-registry tls-manager
 
 
-FROM alpine:3.12.0
+FROM alpine:3.12.0 as manager
 COPY --from=builder /workspace/admission-registry .
 ENTRYPOINT ["/admission-registry"]
+
+
+FROM alpine:3.12.0 as tls
+COPY --from=builder /workspace/tls-manager .
+ENTRYPOINT ["/tls-manager"]
